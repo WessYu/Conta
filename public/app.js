@@ -1,6 +1,8 @@
 const app = document.querySelector('#app');
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateFormat = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+const DEFAULT_API_BASE_URL = 'https://conta-api-wessyu.onrender.com';
+const API_BASE_URL = window.CONTA_API_URL || (location.hostname.endsWith('github.io') ? DEFAULT_API_BASE_URL : '');
 
 const state = {
   user: null,
@@ -54,8 +56,8 @@ function localDate(value) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    credentials: 'same-origin',
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options
   });
