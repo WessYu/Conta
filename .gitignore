@@ -1,5 +1,7 @@
 .env
 node_modules/
+dist/
 _site/
-server/data/*.validation.bak
+server/data/store.json
 server/data/store.json.tmp
+server/data/*.validation.bak
