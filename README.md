@@ -13,6 +13,22 @@ App mobile-first de planejamento e gestao financeira real em PWA.
 - Integracao bancaria real preparada via Belvo/Open Finance: cria consentimento, recebe `link_id`, importa contas, movimentos e faturas autorizadas.
 - Apple Pay e Google Pay preparados via Stripe PaymentIntent quando as chaves reais forem configuradas.
 
+## Links esperados
+
+Frontend GitHub Pages:
+
+```txt
+https://wessyu.github.io/Conta/
+```
+
+Backend Render configurado no frontend:
+
+```txt
+https://conta-api-wessyu.onrender.com
+```
+
+O frontend em GitHub Pages chama essa API automaticamente quando estiver rodando em `github.io`.
+
 ## Rodar localmente
 
 ```bash
@@ -32,17 +48,38 @@ http://localhost:4000
 - iPhone: Safari > Compartilhar > Adicionar a Tela de Inicio.
 - Android: Chrome > menu > Instalar app.
 
+## Deploy do backend no Render
+
+O arquivo `render.yaml` ja esta pronto. No Render:
+
+1. New > Blueprint.
+2. Conecte o repositorio `WessYu/Conta`.
+3. Escolha o servico `conta-api-wessyu`.
+4. Preencha as secrets reais: `BELVO_SECRET_ID`, `BELVO_SECRET_PASSWORD`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`.
+5. Deploy.
+
+O blueprint ja define:
+
+```env
+NODE_ENV=production
+COOKIE_SECURE=true
+FRONTEND_ORIGIN=https://wessyu.github.io
+PUBLIC_BASE_URL=https://conta-api-wessyu.onrender.com
+```
+
 ## Variaveis reais
 
-Preencha o `.env` antes de usar integracoes:
+Para rodar manualmente fora do Render:
 
 ```env
 PORT=4000
 BELVO_ENV=production
 BELVO_SECRET_ID=
 BELVO_SECRET_PASSWORD=
-PUBLIC_BASE_URL=https://seu-dominio.com
-TERMS_URL=https://seu-dominio.com/terms
+PUBLIC_BASE_URL=https://seu-backend.com
+TERMS_URL=https://seu-backend.com/terms
+FRONTEND_ORIGIN=https://wessyu.github.io
+COOKIE_SECURE=true
 STRIPE_SECRET_KEY=
 STRIPE_PUBLISHABLE_KEY=
 ```
@@ -59,6 +96,6 @@ STRIPE_PUBLISHABLE_KEY=
 - `POST /api/integrations/bank/sync`
 - `POST /api/payments/intent`
 
-## Deploy
+## Observacao importante
 
-Para funcionar como app real com dados persistentes, use um host Node com disco persistente ou troque `server/store.js` por PostgreSQL/Supabase. Netlify estatico sozinho nao e suficiente para o backend real.
+GitHub Pages roda apenas o frontend. O sistema de usuarios, banco de dados local do servidor, integracao bancaria e Stripe funcionam no backend Node hospedado no Render ou em outro host Node.
