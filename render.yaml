@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: conta-api-wessyu
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: conta-data
+      mountPath: /opt/render/project/src/server/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: true
+      - key: FRONTEND_ORIGIN
+        value: https://wessyu.github.io
+      - key: PUBLIC_BASE_URL
+        value: https://conta-api-wessyu.onrender.com
+      - key: TERMS_URL
+        value: https://conta-api-wessyu.onrender.com/terms
+      - key: BELVO_ENV
+        value: production
+      - key: BELVO_SECRET_ID
+        sync: false
+      - key: BELVO_SECRET_PASSWORD
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
