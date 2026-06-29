@@ -1,0 +1,124 @@
+.auth-screen {
+  min-height: 100%;
+  display: grid;
+  align-content: space-between;
+  gap: 24px;
+  padding: max(32px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+}
+
+.brand-block span,
+.auth-footnote,
+.account-chip small,
+.inline-empty,
+.sheet-note {
+  color: #9b9b9b;
+}
+
+.brand-block h1 {
+  margin: 12px 0 10px;
+  font-size: clamp(2.3rem, 11vw, 4rem);
+  line-height: 0.92;
+  letter-spacing: -0.06em;
+}
+
+.brand-block p {
+  margin: 0;
+  color: #c4c4c4;
+  line-height: 1.48;
+}
+
+.auth-card,
+.empty-state,
+.integration-status {
+  display: grid;
+  gap: 13px;
+  padding: 16px;
+  border-radius: 24px;
+  background: #151515;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auth-card label {
+  display: grid;
+  gap: 7px;
+  color: #b7b7b7;
+  font-size: 0.82rem;
+}
+
+.auth-card input {
+  width: 100%;
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  color: #fff;
+  background: #1b1b1b;
+  outline: 0;
+  padding: 0 13px;
+}
+
+.auth-footnote {
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+.tool-pill.two {
+  grid-template-columns: repeat(2, 38px);
+}
+
+.empty-state {
+  margin: 0 0 24px;
+}
+
+.empty-state > span {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #242424;
+}
+
+.empty-state h2,
+.integration-status strong {
+  margin: 0;
+}
+
+.empty-state p,
+.integration-status p,
+.sheet-note {
+  margin: 0;
+  color: #ababab;
+  line-height: 1.45;
+}
+
+.integration-status.ready {
+  color: #000;
+  background: #f6f6f6;
+}
+
+.integration-status.ready p {
+  color: #555;
+}
+
+.ghost-action {
+  width: 100%;
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 18px;
+  color: #fff;
+  background: #101010;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.inline-empty {
+  padding: 20px 14px;
+  text-align: center;
+}
+
+.sheet-note {
+  padding: 0 2px;
+}
