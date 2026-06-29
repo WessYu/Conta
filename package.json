@@ -1,0 +1,11 @@
+{
+  "name": "conta-finance-pwa",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server/index.js",
+    "start": "node server/index.js",
+    "check": "node --check server/index.js"
+  }
+}
