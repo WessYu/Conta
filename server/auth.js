@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { createId, seedUserFinancialData } from './store.js';
+import { createId } from './store.js';
 
 const COOKIE_NAME = 'conta_session';
 const SESSION_DAYS = 30;
@@ -29,7 +29,8 @@ export function publicUser(user) {
     id: user.id,
     name: user.name,
     email: user.email,
-    createdAt: user.createdAt
+    createdAt: user.createdAt,
+    settings: user.settings || { currency: 'BRL', monthlySafeReserve: 0, payday: 1 }
   };
 }
 
@@ -101,11 +102,15 @@ export function registerUser(store, body) {
     name,
     email,
     passwordHash: hashPassword(password),
+    settings: {
+      currency: 'BRL',
+      monthlySafeReserve: 0,
+      payday: 1
+    },
     createdAt: new Date().toISOString()
   };
 
   store.users.push(user);
-  seedUserFinancialData(store, user);
   return user;
 }
 
