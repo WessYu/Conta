@@ -8,6 +8,11 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+function cookieSecurityAttributes() {
+  const secure = process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production';
+  return secure ? 'SameSite=None; Secure' : 'SameSite=Lax';
+}
+
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.scryptSync(password, salt, 64).toString('hex');
@@ -49,11 +54,11 @@ export function parseCookies(request) {
 
 export function sessionCookie(token) {
   const maxAge = SESSION_DAYS * 24 * 60 * 60;
-  return `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+  return `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; ${cookieSecurityAttributes()}; Path=/; Max-Age=${maxAge}`;
 }
 
 export function clearSessionCookie() {
-  return `${COOKIE_NAME}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  return `${COOKIE_NAME}=; HttpOnly; ${cookieSecurityAttributes()}; Path=/; Max-Age=0`;
 }
 
 export function getSessionToken(request) {
