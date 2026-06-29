@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "node server/index.js",
     "start": "node server/index.js",
-    "check": "node --check server/index.js"
+    "build": "node scripts/build.js",
+    "check": "node --check server/index.js && node --check server/auth.js && node --check server/store.js && node --check server/finance.js && node --check server/integrations.js && node --check server/payments.js && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
