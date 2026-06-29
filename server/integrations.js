@@ -40,6 +40,16 @@ function belvoErrorMessage(payload, fallback) {
   return fallback;
 }
 
+function cleanCpf(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+function buildIdentificationInfo(documentNumber, fullName) {
+  const cpf = cleanCpf(documentNumber || process.env.BELVO_TEST_CPF || '76109277673');
+  const name = String(fullName || process.env.BELVO_TEST_FULL_NAME || 'Ralph Bragg').trim();
+  return cpf && name ? [{ type: 'CPF', number: cpf, name }] : undefined;
+}
+
 export function getBankStatus() {
   return {
     provider: 'belvo_open_finance_brazil',
@@ -50,8 +60,9 @@ export function getBankStatus() {
   };
 }
 
-export async function createBelvoWidgetSession({ externalId, accessMode = 'single' }) {
+export async function createBelvoWidgetSession({ externalId, accessMode = 'single', documentNumber, fullName }) {
   const appUrl = publicBaseUrl();
+  const identificationInfo = buildIdentificationInfo(documentNumber, fullName);
   const payload = {
     id: requireEnv('BELVO_SECRET_ID'),
     password: requireEnv('BELVO_SECRET_PASSWORD'),
@@ -68,11 +79,12 @@ export async function createBelvoWidgetSession({ externalId, accessMode = 'singl
       },
       consent: {
         terms_and_conditions_url: process.env.TERMS_URL || `${appUrl}/terms`,
-        permissions: ['REGISTER', 'ACCOUNTS', 'CREDIT_CARDS', 'CREDIT_OPERATIONS']
+        permissions: ['REGISTER', 'ACCOUNTS', 'CREDIT_CARDS', 'CREDIT_OPERATIONS'],
+        identification_info: identificationInfo
       },
       branding: {
-        company_icon: process.env.COMPANY_ICON_URL || `${appUrl}/icons/icon.svg`,
-        company_logo: process.env.COMPANY_LOGO_URL || `${appUrl}/icons/icon.svg`,
+        company_icon: process.env.COMPANY_ICON_URL || `${appUrl}/public/icons/icon.svg`,
+        company_logo: process.env.COMPANY_LOGO_URL || `${appUrl}/public/icons/icon.svg`,
         company_name: process.env.APP_NAME || 'Conta',
         company_terms_url: process.env.TERMS_URL || `${appUrl}/terms`,
         overlay_background_color: '#000000',
@@ -99,6 +111,10 @@ export async function createBelvoWidgetSession({ externalId, accessMode = 'singl
   const widgetUrl = new URL('https://widget.belvo.io/');
   widgetUrl.searchParams.set('access_token', token.access);
   widgetUrl.searchParams.set('locale', 'pt');
+  widgetUrl.searchParams.set('integration_type', 'openfinance');
+  widgetUrl.searchParams.set('institution_types', 'retail');
+  widgetUrl.searchParams.set('country_codes', 'BR');
+  widgetUrl.searchParams.set('resources', 'OWNERS,ACCOUNTS,TRANSACTIONS');
   widgetUrl.searchParams.set('access_mode', accessMode);
   widgetUrl.searchParams.set('external_id', externalId || `conta_${Date.now()}`);
 
