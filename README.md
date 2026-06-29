@@ -1,38 +1,64 @@
 # Conta
 
-App mobile-first de planejamento e gestao financeira em PWA, com frontend instalavel, backend Node puro e persistencia local em JSON.
+App mobile-first de planejamento e gestao financeira real em PWA.
+
+## O que ja esta no repo
+
+- Interface preto e branco minimalista, feita para abrir no navegador do celular e instalar como app.
+- Cadastro e login com sessao HTTP-only.
+- App com dados vazios no primeiro acesso: sem seed, sem mock e sem modo demo.
+- Cadastro manual de contas, entradas, saidas e contas a pagar.
+- Calculo automatico de saldo total, entradas, saidas, limite seguro do mes e limite do dia.
+- Backend Node sem framework, salvando em `server/data/store.json`.
+- Integracao bancaria real preparada via Belvo/Open Finance: cria consentimento, recebe `link_id`, importa contas, movimentos e faturas autorizadas.
+- Apple Pay e Google Pay preparados via Stripe PaymentIntent quando as chaves reais forem configuradas.
 
 ## Rodar localmente
 
 ```bash
-node server/index.js
+cp .env.example .env
+npm install
+npm run dev
 ```
 
-Abra `http://localhost:4000` no navegador. No celular, use o IP da maquina na mesma rede, por exemplo `http://SEU-IP:4000`.
+Abra:
 
-Se o seu npm estiver normal, `npm run dev` faz a mesma coisa.
+```bash
+http://localhost:4000
+```
 
 ## Instalar no celular
 
 - iPhone: Safari > Compartilhar > Adicionar a Tela de Inicio.
 - Android: Chrome > menu > Instalar app.
 
-## Integracoes reais
+## Variaveis reais
 
-O app nao usa modo demo. Se as chaves reais nao estiverem no `.env`, o backend retorna erro de configuracao.
+Preencha o `.env` antes de usar integracoes:
 
-Crie um `.env` a partir de `.env.example` e preencha:
+```env
+PORT=4000
+BELVO_ENV=production
+BELVO_SECRET_ID=
+BELVO_SECRET_PASSWORD=
+PUBLIC_BASE_URL=https://seu-dominio.com
+TERMS_URL=https://seu-dominio.com/terms
+STRIPE_SECRET_KEY=
+STRIPE_PUBLISHABLE_KEY=
+```
 
-- `BELVO_SECRET_ID` e `BELVO_SECRET_PASSWORD` para Open Finance Brasil via Belvo.
-- `STRIPE_SECRET_KEY` e `STRIPE_PUBLISHABLE_KEY` para Apple Pay/Google Pay via Stripe.
-- `PUBLIC_BASE_URL` com um dominio HTTPS real.
-- `TERMS_URL`, `COMPANY_ICON_URL` e `COMPANY_LOGO_URL` publicos.
+## Rotas principais
 
-Rotas principais:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/summary`
+- `POST /api/accounts`
+- `POST /api/transactions`
+- `POST /api/bills`
+- `POST /api/integrations/bank/connect`
+- `POST /api/integrations/bank/sync`
+- `POST /api/payments/intent`
 
-- `POST /api/integrations/bank/connect` cria uma sessao real do Hosted Widget Belvo.
-- `POST /api/integrations/bank/sync` busca dados reais por `link_id`.
-- `POST /api/payments/intent` cria PaymentIntent real no Stripe.
-- `POST /api/webhooks/belvo` recebe eventos do consentimento bancario.
+## Deploy
 
-O app nunca deve armazenar credenciais bancarias do usuario diretamente.
+Para funcionar como app real com dados persistentes, use um host Node com disco persistente ou troque `server/store.js` por PostgreSQL/Supabase. Netlify estatico sozinho nao e suficiente para o backend real.
