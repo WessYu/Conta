@@ -1,10 +1,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import pg from 'pg';
 
+const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'store.json');
+
+let pool;
+let postgresReady = false;
 
 const emptyStore = {
   users: [],
@@ -56,7 +61,63 @@ export function normalizeStore(data = {}) {
   };
 }
 
-async function ensureStore() {
+function usePostgres() {
+  return Boolean(process.env.DATABASE_URL);
+}
+
+function getPool() {
+  if (!usePostgres()) return null;
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false }
+    });
+  }
+  return pool;
+}
+
+async function ensurePostgresStore() {
+  const db = getPool();
+  if (!db) return;
+  if (postgresReady) return;
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS conta_store (
+      id INTEGER PRIMARY KEY,
+      data JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await db.query(
+    `INSERT INTO conta_store (id, data)
+     VALUES (1, $1::jsonb)
+     ON CONFLICT (id) DO NOTHING`,
+    [JSON.stringify(createEmptyStore())]
+  );
+
+  postgresReady = true;
+}
+
+async function readPostgresStore() {
+  await ensurePostgresStore();
+  const result = await getPool().query('SELECT data FROM conta_store WHERE id = 1');
+  return normalizeStore(result.rows[0]?.data || createEmptyStore());
+}
+
+async function writePostgresStore(data) {
+  await ensurePostgresStore();
+  const normalized = normalizeStore(data);
+  await getPool().query(
+    `UPDATE conta_store
+     SET data = $1::jsonb, updated_at = NOW()
+     WHERE id = 1`,
+    [JSON.stringify(normalized)]
+  );
+  return normalized;
+}
+
+async function ensureFileStore() {
   await fs.mkdir(dataDir, { recursive: true });
   try {
     await fs.access(dataFile);
@@ -65,18 +126,27 @@ async function ensureStore() {
   }
 }
 
-export async function readStore() {
-  await ensureStore();
+async function readFileStore() {
+  await ensureFileStore();
   const raw = await fs.readFile(dataFile, 'utf8');
   return normalizeStore(JSON.parse(raw || '{}'));
 }
 
-export async function writeStore(data) {
-  await ensureStore();
+async function writeFileStore(data) {
+  await ensureFileStore();
   const tempFile = `${dataFile}.tmp`;
-  await fs.writeFile(tempFile, JSON.stringify(normalizeStore(data), null, 2), 'utf8');
+  const normalized = normalizeStore(data);
+  await fs.writeFile(tempFile, JSON.stringify(normalized, null, 2), 'utf8');
   await fs.rename(tempFile, dataFile);
-  return data;
+  return normalized;
+}
+
+export async function readStore() {
+  return usePostgres() ? readPostgresStore() : readFileStore();
+}
+
+export async function writeStore(data) {
+  return usePostgres() ? writePostgresStore(data) : writeFileStore(data);
 }
 
 export function createId(prefix) {
