@@ -20,6 +20,26 @@ function basicAuth() {
   return `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`;
 }
 
+function belvoErrorMessage(payload, fallback) {
+  if (!payload || typeof payload !== 'object') return fallback;
+  if (typeof payload.detail === 'string') return payload.detail;
+  if (typeof payload.message === 'string') return payload.message;
+  if (typeof payload.error === 'string') return payload.error;
+  if (Array.isArray(payload.non_field_errors)) return payload.non_field_errors.join(' ');
+  if (Array.isArray(payload.errors)) {
+    return payload.errors
+      .map((error) => error.message || error.detail || JSON.stringify(error))
+      .join(' ')
+      .slice(0, 240);
+  }
+  const first = Object.entries(payload)[0];
+  if (first) {
+    const [key, value] = first;
+    return `${key}: ${Array.isArray(value) ? value.join(' ') : JSON.stringify(value)}`.slice(0, 240);
+  }
+  return fallback;
+}
+
 export function getBankStatus() {
   return {
     provider: 'belvo_open_finance_brazil',
@@ -67,9 +87,10 @@ export async function createBelvoWidgetSession({ externalId, accessMode = 'singl
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  const token = await response.json();
+  const token = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw Object.assign(new Error(token.detail || token.message || 'Falha ao criar consentimento.'), {
+    const message = belvoErrorMessage(token, 'Falha ao criar consentimento na Belvo.');
+    throw Object.assign(new Error(`Belvo: ${message}`), {
       status: response.status,
       details: token
     });
@@ -94,9 +115,10 @@ async function belvoGet(pathname, params) {
     if (value) url.searchParams.set(key, value);
   }
   const response = await fetch(url, { headers: { Authorization: basicAuth() } });
-  const payload = await response.json();
+  const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw Object.assign(new Error(payload.detail || payload.message || 'Falha ao sincronizar.'), {
+    const message = belvoErrorMessage(payload, 'Falha ao sincronizar com a Belvo.');
+    throw Object.assign(new Error(`Belvo: ${message}`), {
       status: response.status,
       details: payload
     });
