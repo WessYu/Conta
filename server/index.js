@@ -4,9 +4,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from './env.js';
 import { calculateSummary, buildSpendingPlan } from './finance.js';
-import { createId, readStore, writeStore } from './store.js';
+import { createId, getUserFinancialStore, readStore, writeStore } from './store.js';
 import { createBelvoWidgetSession, fetchBelvoLinkData, getBankStatus } from './integrations.js';
 import { createPaymentIntent, getPaymentsStatus } from './payments.js';
+import {
+  authenticateRequest,
+  clearSessionCookie,
+  createSession,
+  destroySession,
+  loginUser,
+  publicUser,
+  registerUser,
+  requireAuthenticatedUser,
+  sessionCookie
+} from './auth.js';
 
 loadEnv();
 
@@ -24,13 +35,14 @@ const mimeTypes = {
   '.svg': 'image/svg+xml; charset=utf-8'
 };
 
-function sendJson(response, status, payload) {
+function sendJson(response, status, payload, extraHeaders = {}) {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    ...extraHeaders
   });
   response.end(JSON.stringify(payload));
 }
@@ -130,27 +142,65 @@ async function handleApi(request, response, url) {
     return;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/auth/me') {
+    const store = await readStore();
+    sendJson(response, 200, { user: publicUser(authenticateRequest(request, store)) });
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/register') {
+    const store = await readStore();
+    const user = registerUser(store, await readBody(request));
+    const token = createSession(store, user);
+    await writeStore(store);
+    sendJson(response, 201, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/login') {
+    const store = await readStore();
+    const user = loginUser(store, await readBody(request));
+    const token = createSession(store, user);
+    await writeStore(store);
+    sendJson(response, 200, { user: publicUser(user) }, { 'Set-Cookie': sessionCookie(token) });
+    return;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/logout') {
+    const store = await readStore();
+    destroySession(store, request);
+    await writeStore(store);
+    sendJson(response, 200, { ok: true }, { 'Set-Cookie': clearSessionCookie() });
+    return;
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/summary') {
-    sendJson(response, 200, calculateSummary(await readStore()));
+    const store = await readStore();
+    const user = requireAuthenticatedUser(request, store);
+    sendJson(response, 200, calculateSummary(getUserFinancialStore(store, user)));
     return;
   }
 
   if (request.method === 'GET' && url.pathname === '/api/transactions') {
     const store = await readStore();
-    sendJson(response, 200, store.transactions.sort((a, b) => b.date.localeCompare(a.date)));
+    const user = requireAuthenticatedUser(request, store);
+    sendJson(response, 200, store.transactions.filter((item) => item.userId === user.id).sort((a, b) => b.date.localeCompare(a.date)));
     return;
   }
 
   if (request.method === 'POST' && url.pathname === '/api/transactions') {
     const payload = validateTransaction(await readBody(request));
     const store = await readStore();
-    const transaction = { id: createId('tx'), ...payload };
+    const user = requireAuthenticatedUser(request, store);
+    const account = store.accounts.find((item) => item.id === payload.accountId && item.userId === user.id);
+    if (!account) {
+      throw Object.assign(new Error('Conta nao encontrada para este usuario.'), { status: 404 });
+    }
+
+    const transaction = { id: createId('tx'), userId: user.id, ...payload };
     store.transactions.unshift(transaction);
 
-    const account = store.accounts.find((item) => item.id === payload.accountId);
-    if (account) {
-      account.balance = Number((account.balance + (payload.type === 'income' ? payload.amount : -payload.amount)).toFixed(2));
-    }
+    account.balance = Number((account.balance + (payload.type === 'income' ? payload.amount : -payload.amount)).toFixed(2));
 
     await writeStore(store);
     sendJson(response, 201, transaction);
@@ -159,14 +209,16 @@ async function handleApi(request, response, url) {
 
   if (request.method === 'GET' && url.pathname === '/api/accounts') {
     const store = await readStore();
-    sendJson(response, 200, store.accounts);
+    const user = requireAuthenticatedUser(request, store);
+    sendJson(response, 200, store.accounts.filter((account) => account.userId === user.id));
     return;
   }
 
   if (request.method === 'POST' && url.pathname === '/api/accounts') {
     const payload = validateAccount(await readBody(request));
     const store = await readStore();
-    const account = { id: createId('acc'), ...payload };
+    const user = requireAuthenticatedUser(request, store);
+    const account = { id: createId('acc'), userId: user.id, ...payload };
     store.accounts.push(account);
     await writeStore(store);
     sendJson(response, 201, account);
@@ -175,14 +227,21 @@ async function handleApi(request, response, url) {
 
   if (request.method === 'GET' && url.pathname === '/api/bills') {
     const store = await readStore();
-    sendJson(response, 200, store.bills);
+    const user = requireAuthenticatedUser(request, store);
+    sendJson(response, 200, store.bills.filter((bill) => bill.userId === user.id));
     return;
   }
 
   if (request.method === 'POST' && url.pathname === '/api/bills') {
     const payload = validateBill(await readBody(request));
     const store = await readStore();
-    const bill = { id: createId('bill'), ...payload };
+    const user = requireAuthenticatedUser(request, store);
+    const account = store.accounts.find((item) => item.id === payload.accountId && item.userId === user.id);
+    if (!account) {
+      throw Object.assign(new Error('Conta nao encontrada para este usuario.'), { status: 404 });
+    }
+
+    const bill = { id: createId('bill'), userId: user.id, ...payload };
     store.bills.push(bill);
     await writeStore(store);
     sendJson(response, 201, bill);
@@ -190,7 +249,9 @@ async function handleApi(request, response, url) {
   }
 
   if (request.method === 'GET' && url.pathname === '/api/spending-plan') {
-    sendJson(response, 200, buildSpendingPlan(await readStore()));
+    const store = await readStore();
+    const user = requireAuthenticatedUser(request, store);
+    sendJson(response, 200, buildSpendingPlan(getUserFinancialStore(store, user)));
     return;
   }
 
@@ -203,6 +264,8 @@ async function handleApi(request, response, url) {
   }
 
   if (request.method === 'POST' && url.pathname === '/api/integrations/bank/connect') {
+    const store = await readStore();
+    requireAuthenticatedUser(request, store);
     const body = await readBody(request);
     sendJson(
       response,
@@ -218,6 +281,8 @@ async function handleApi(request, response, url) {
   }
 
   if (request.method === 'POST' && url.pathname === '/api/integrations/bank/sync') {
+    const store = await readStore();
+    requireAuthenticatedUser(request, store);
     const body = await readBody(request);
     const linkId = assertString(body.linkId, 'linkId', 4);
     sendJson(response, 200, await fetchBelvoLinkData(linkId));
@@ -225,6 +290,8 @@ async function handleApi(request, response, url) {
   }
 
   if (request.method === 'POST' && url.pathname === '/api/payments/intent') {
+    const store = await readStore();
+    requireAuthenticatedUser(request, store);
     const body = await readBody(request);
     sendJson(
       response,

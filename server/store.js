@@ -54,6 +54,33 @@ const seed = {
   webhooks: []
 };
 
+export const starterFinancialData = {
+  profile: seed.profile,
+  accounts: seed.accounts,
+  transactions: seed.transactions,
+  bills: seed.bills,
+  budgets: seed.budgets,
+  goals: seed.goals,
+  integrations: seed.integrations
+};
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+export function normalizeStore(data) {
+  data.users = Array.isArray(data.users) ? data.users : [];
+  data.sessions = Array.isArray(data.sessions) ? data.sessions : [];
+  data.webhooks = Array.isArray(data.webhooks) ? data.webhooks : [];
+  data.accounts = Array.isArray(data.accounts) ? data.accounts : [];
+  data.transactions = Array.isArray(data.transactions) ? data.transactions : [];
+  data.bills = Array.isArray(data.bills) ? data.bills : [];
+  data.budgets = Array.isArray(data.budgets) ? data.budgets : [];
+  data.goals = Array.isArray(data.goals) ? data.goals : [];
+  data.integrations = data.integrations || clone(seed.integrations);
+  return data;
+}
+
 async function ensureStore() {
   await fs.mkdir(dataDir, { recursive: true });
   try {
@@ -66,7 +93,7 @@ async function ensureStore() {
 export async function readStore() {
   await ensureStore();
   const raw = await fs.readFile(dataFile, 'utf8');
-  return JSON.parse(raw);
+  return normalizeStore(JSON.parse(raw));
 }
 
 export async function writeStore(data) {
@@ -79,4 +106,58 @@ export async function writeStore(data) {
 
 export function createId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function seedUserFinancialData(store, user) {
+  if (store.accounts.some((account) => account.userId === user.id)) return;
+
+  const accountMap = new Map();
+  for (const account of starterFinancialData.accounts) {
+    const id = createId('acc');
+    accountMap.set(account.id, id);
+    store.accounts.push({ ...clone(account), id, userId: user.id });
+  }
+
+  for (const transaction of starterFinancialData.transactions) {
+    store.transactions.push({
+      ...clone(transaction),
+      id: createId('tx'),
+      accountId: accountMap.get(transaction.accountId) || transaction.accountId,
+      userId: user.id
+    });
+  }
+
+  for (const bill of starterFinancialData.bills) {
+    store.bills.push({
+      ...clone(bill),
+      id: createId('bill'),
+      accountId: accountMap.get(bill.accountId) || bill.accountId,
+      userId: user.id
+    });
+  }
+
+  for (const budget of starterFinancialData.budgets) {
+    store.budgets.push({ ...clone(budget), id: createId('budget'), userId: user.id });
+  }
+
+  for (const goal of starterFinancialData.goals) {
+    store.goals.push({ ...clone(goal), id: createId('goal'), userId: user.id });
+  }
+}
+
+export function getUserFinancialStore(store, user) {
+  return {
+    profile: {
+      ...clone(starterFinancialData.profile),
+      id: user.id,
+      name: user.name,
+      email: user.email
+    },
+    accounts: store.accounts.filter((account) => account.userId === user.id),
+    transactions: store.transactions.filter((transaction) => transaction.userId === user.id),
+    bills: store.bills.filter((bill) => bill.userId === user.id),
+    budgets: store.budgets.filter((budget) => budget.userId === user.id),
+    goals: store.goals.filter((goal) => goal.userId === user.id),
+    integrations: store.integrations
+  };
 }
