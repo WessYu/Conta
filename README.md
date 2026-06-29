@@ -9,7 +9,8 @@ App mobile-first de planejamento e gestao financeira real em PWA.
 - App com dados vazios no primeiro acesso: sem seed, sem mock e sem modo demo.
 - Cadastro manual de contas, entradas, saidas e contas a pagar.
 - Calculo automatico de saldo total, entradas, saidas, limite seguro do mes e limite do dia.
-- Backend Node sem framework, salvando em `server/data/store.json`.
+- Persistencia real com Postgres quando `DATABASE_URL` existir.
+- Fallback local em `server/data/store.json` apenas para teste local.
 - Integracao bancaria real preparada via Belvo/Open Finance: cria consentimento, recebe `link_id`, importa contas, movimentos e faturas autorizadas.
 - Apple Pay e Google Pay preparados via Stripe PaymentIntent quando as chaves reais forem configuradas.
 
@@ -27,7 +28,11 @@ Backend Render configurado no frontend:
 https://conta-api-wessyu.onrender.com
 ```
 
-O frontend em GitHub Pages chama essa API automaticamente quando estiver rodando em `github.io`.
+Para testar login, bancos e salvamento sem bloqueio de cookie no iPhone, prefira abrir direto o backend:
+
+```txt
+https://conta-api-wessyu.onrender.com
+```
 
 ## Rodar localmente
 
@@ -48,40 +53,42 @@ http://localhost:4000
 - iPhone: Safari > Compartilhar > Adicionar a Tela de Inicio.
 - Android: Chrome > menu > Instalar app.
 
+## Banco de dados para salvar de verdade
+
+No Render, Supabase ou Neon, crie um Postgres e copie a connection string para:
+
+```env
+DATABASE_URL=postgresql://usuario:senha@host:5432/database
+DATABASE_SSL=true
+```
+
+Sem `DATABASE_URL`, o app usa arquivo local de teste. Em hospedagem como Render, arquivo local pode perder dados em rebuild/restart, entao nao e ideal para usuarios reais.
+
+O backend cria sozinho a tabela `conta_store` na primeira requisicao.
+
 ## Deploy do backend no Render
 
 O arquivo `render.yaml` ja esta pronto. No Render:
 
-1. New > Blueprint.
+1. New > Blueprint ou Web Service.
 2. Conecte o repositorio `WessYu/Conta`.
 3. Escolha o servico `conta-api-wessyu`.
-4. Preencha as secrets reais: `BELVO_SECRET_ID`, `BELVO_SECRET_PASSWORD`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`.
-5. Deploy.
+4. Preencha `DATABASE_URL` com um Postgres real.
+5. Preencha as secrets reais: `BELVO_SECRET_ID`, `BELVO_SECRET_PASSWORD`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`.
+6. Deploy.
 
-O blueprint ja define:
+Variaveis principais:
 
 ```env
 NODE_ENV=production
 COOKIE_SECURE=true
 FRONTEND_ORIGIN=https://wessyu.github.io
 PUBLIC_BASE_URL=https://conta-api-wessyu.onrender.com
-```
-
-## Variaveis reais
-
-Para rodar manualmente fora do Render:
-
-```env
-PORT=4000
-BELVO_ENV=production
+DATABASE_URL=
+DATABASE_SSL=true
+BELVO_ENV=sandbox
 BELVO_SECRET_ID=
 BELVO_SECRET_PASSWORD=
-PUBLIC_BASE_URL=https://seu-backend.com
-TERMS_URL=https://seu-backend.com/terms
-FRONTEND_ORIGIN=https://wessyu.github.io
-COOKIE_SECURE=true
-STRIPE_SECRET_KEY=
-STRIPE_PUBLISHABLE_KEY=
 ```
 
 ## Rotas principais
@@ -98,4 +105,4 @@ STRIPE_PUBLISHABLE_KEY=
 
 ## Observacao importante
 
-GitHub Pages roda apenas o frontend. O sistema de usuarios, banco de dados local do servidor, integracao bancaria e Stripe funcionam no backend Node hospedado no Render ou em outro host Node.
+GitHub Pages roda apenas o frontend. O sistema de usuarios, persistencia, integracao bancaria e Stripe funcionam no backend Node hospedado no Render ou em outro host Node.
