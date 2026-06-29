@@ -25,6 +25,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
 const publicDir = path.join(rootDir, 'public');
 const port = Number(process.env.PORT || 4000);
+const frontendOrigin = process.env.FRONTEND_ORIGIN || 'https://wessyu.github.io';
 
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -35,14 +36,22 @@ const mimeTypes = {
   '.svg': 'image/svg+xml; charset=utf-8'
 };
 
+function baseHeaders(extraHeaders = {}) {
+  return {
+    'Access-Control-Allow-Origin': frontendOrigin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+    Vary: 'Origin',
+    ...extraHeaders
+  };
+}
+
 function sendJson(response, status, payload, extraHeaders = {}) {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-    ...extraHeaders
+    ...baseHeaders(extraHeaders)
   });
   response.end(JSON.stringify(payload));
 }
